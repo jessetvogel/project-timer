@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+    <title>Project Timer</title>
+    <link rel="icon" type="image/png" href="img/favicon.png">
+    <meta name="description" content="Project timer">
+    <meta name="author" content="Jesse Vogel">
+    <link rel="stylesheet" type="text/css" href="css/fonts.css">
+    <link rel="stylesheet" type="text/css" href="css/style.css">
+    <script type="module" src="js/script.js"></script>
+
+</head>
+
+<body>
+
+    <div id="projects"></div>
+
+    <div id="navigation">
+        <button id="button-prev-day">&lt;</button>
+        <span id="date">19 december 2024</span>
+        <button id="button-next-day">&gt;</button>
+    </div>
+
+    <div id="timetable"></div>
+
+    <div id="timeline">
+        <div id="times"></div>
+        <div id="intervals"></div>
+    </div>
+
+    <dialog class="dialog-add-project">
+        <div>
+            <span class="header">new project</span>
+            <input id="input-project-name" placeholder="project name" />
+            <div class="colors">
+                <div></div>
+                <div></div>
+                <div></div>
+                <div></div>
+                <div></div>
+                <div></div>
+            </div>
+            <button>+ add</button>
+        </div>
+    </dialog>
+
+</body>
+
+</html>
