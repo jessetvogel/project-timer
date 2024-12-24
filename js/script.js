@@ -1,5 +1,6 @@
 import { ProjectManager } from "./projectmanager.js";
 import { $, $$, addClass, clear, create, onClick, removeClass, setText } from "./util.js";
+import { initTheme } from "./theme.js";
 const PROJECT_MANAGER = new ProjectManager();
 window.PROJECT_MANAGER = PROJECT_MANAGER;
 const COLORS = [
@@ -19,6 +20,7 @@ var selectedDate = new Date();
 function main() {
     PROJECT_MANAGER.load();
     hydrate();
+    initTheme();
     setInterval(render, 10 * 1000);
     render();
 }

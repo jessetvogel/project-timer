@@ -1,5 +1,6 @@
 import { Interval, Project, ProjectManager } from "./projectmanager.js";
 import { $, $$, addClass, clear, create, onClick, removeClass, setText } from "./util.js"
+import { initTheme } from "./theme.js"
 
 const PROJECT_MANAGER = new ProjectManager();
 (window as any).PROJECT_MANAGER = PROJECT_MANAGER;
@@ -27,6 +28,9 @@ function main() {
 
     // Hydrate page
     hydrate();
+
+    // Initialize theme
+    initTheme();
 
     // Re-render every 10 seconds
     setInterval(render, 10 * 1000);
