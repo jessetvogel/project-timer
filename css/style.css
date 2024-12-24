@@ -113,6 +113,7 @@ body {
         border-radius: 6px;
         background-color: transparent;
         font-weight: thin;
+        color: var(--color-text);
         box-shadow: var(--box-shadow);
         cursor: pointer;
     }
@@ -364,6 +365,7 @@ dialog {
         outline: none;
         text-align: center;
         background-color: transparent;
+        color: var(--color-text);
         cursor: pointer;
         font-size: 16px;
         height: 40px;
@@ -386,6 +388,7 @@ dialog {
         box-sizing: border-box;
         overflow-x: hidden;
         overflow-y: auto;
+        font-size: 1rem;
     }
 
     .colors {
