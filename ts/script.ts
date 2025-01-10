@@ -282,7 +282,7 @@ function openDialogEditProject(project: Project): void {
             renderColorSelection(project.color),
             create('button', {
                 '@click': () => {
-                    // Update project with given name and color
+                    // Get name and color and validate
                     const name = dialog.querySelector('input')!.value;
                     const color = (dialog.querySelector('.colors .active')! as HTMLElement).dataset.color!;
                     if (name.length == 0) {
@@ -295,6 +295,13 @@ function openDialogEditProject(project: Project): void {
                         setText(error, 'project name already used');
                         return;
                     }
+                    // Update references to project in intervals
+                    for (const interval of PROJECT_MANAGER.intervals) {
+                        if (interval.project == project.name) {
+                            interval.project = name;
+                        }
+                    }
+                    // Update project with given name and color
                     project.name = name;
                     project.color = color;
                     PROJECT_MANAGER.save();

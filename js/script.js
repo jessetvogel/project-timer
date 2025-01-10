@@ -252,6 +252,11 @@ function openDialogEditProject(project) {
                         setText(error, 'project name already used');
                         return;
                     }
+                    for (const interval of PROJECT_MANAGER.intervals) {
+                        if (interval.project == project.name) {
+                            interval.project = name;
+                        }
+                    }
                     project.name = name;
                     project.color = color;
                     PROJECT_MANAGER.save();
