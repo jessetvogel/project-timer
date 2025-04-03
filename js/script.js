@@ -1,5 +1,5 @@
 import { ProjectManager } from "./projectmanager.js";
-import { $, $$, addClass, clear, create, onClick, removeClass, setText } from "./util.js";
+import { $, $$, addClass, clear, create, onClick, onDragOver, onDrop, removeClass, setText } from "./util.js";
 import { initTheme } from "./theme.js";
 const PROJECT_MANAGER = new ProjectManager();
 window.PROJECT_MANAGER = PROJECT_MANAGER;
@@ -17,12 +17,111 @@ const COLORS = [
 ];
 window.addEventListener("DOMContentLoaded", main);
 var selectedDate = new Date();
+var dragData = null;
 function main() {
     PROJECT_MANAGER.load();
     hydrate();
     initTheme();
     setInterval(render, 10 * 1000);
     render();
+    onDragOver(document.body, (event) => {
+        event.preventDefault();
+        dragMove(event.clientX, event.clientY);
+    });
+    onDrop($('timeline'), (event) => {
+        event.preventDefault();
+        dragStop(event.clientX, event.clientY);
+    });
+    document.addEventListener("touchstart", (event) => {
+        event.preventDefault();
+        const target = event.target.closest("[draggable='true']");
+        if (target != null) {
+            const project = PROJECT_MANAGER.getProject(target.querySelector('.name').innerText);
+            if (project != null) {
+                dragStart(project);
+                dragData.touchIdentifier = event.changedTouches[0].identifier;
+            }
+        }
+    });
+    document.addEventListener("touchmove", (event) => {
+        for (const touch of event.changedTouches) {
+            if (dragData != null && touch.identifier == dragData.touchIdentifier) {
+                event.preventDefault();
+                dragMove(touch.clientX, touch.clientY);
+                break;
+            }
+        }
+    }, { passive: false });
+    document.addEventListener("touchend", (event) => {
+        for (const touch of event.changedTouches) {
+            if (dragData != null && touch.identifier == dragData.touchIdentifier) {
+                event.preventDefault();
+                dragStop(touch.clientX, touch.clientY);
+                return;
+            }
+        }
+    });
+}
+function dragStart(project) {
+    var _a;
+    const timelineInfo = renderTimeline();
+    const previewWidth = timelineInfo.timelineWidth / (timelineInfo.maxHour - timelineInfo.minHour) * 0.25;
+    const preview = create('div', { class: 'drop-preview' });
+    preview.style.backgroundColor = project.color;
+    preview.style.opacity = '0.0';
+    preview.style.width = `${previewWidth}px`;
+    (_a = $("intervals")) === null || _a === void 0 ? void 0 : _a.append(preview);
+    dragData = {
+        project: project,
+        preview: preview,
+        touchIdentifier: -1,
+    };
+}
+function dragMove(clientX, clientY) {
+    if (dragData != null) {
+        const timeline = $('timeline');
+        const hoverTimeline = (clientX >= timeline.offsetLeft
+            && clientX <= timeline.offsetLeft + timeline.offsetWidth
+            && clientY >= timeline.offsetTop
+            && clientY <= timeline.offsetTop + timeline.offsetHeight);
+        dragData.preview.style.opacity = (hoverTimeline ? '0.5' : '0.0');
+        dragData.preview.style.left = `${clientX - 24}px`;
+    }
+}
+function dragStop(clientX, clientY) {
+    if (dragData != null) {
+        const timeline = $('timeline');
+        const hoverTimeline = (clientX >= timeline.offsetLeft
+            && clientX <= timeline.offsetLeft + timeline.offsetWidth
+            && clientY >= timeline.offsetTop
+            && clientY <= timeline.offsetTop + timeline.offsetHeight);
+        if (hoverTimeline) {
+            dropOnTimeline(clientX);
+        }
+        dragData = null;
+    }
+}
+function dropOnTimeline(clientX) {
+    if (dragData != null) {
+        const timelineInfo = renderTimeline();
+        const f = (clientX - timelineInfo.timelineLeft) / timelineInfo.timelineWidth;
+        const startHour = timelineInfo.minHour + f * (timelineInfo.maxHour - timelineInfo.minHour);
+        const start = new Date(selectedDate);
+        start.setHours(Math.floor(startHour));
+        start.setMinutes(Math.floor(startHour * 60) % 60);
+        const stopHour = startHour + 0.25;
+        const stop = new Date(start);
+        stop.setHours(Math.floor(stopHour));
+        stop.setMinutes(Math.floor(stopHour * 60) % 60);
+        PROJECT_MANAGER.intervals.push({
+            project: dragData.project.name,
+            start: start.getTime(),
+            stop: stop.getTime(),
+            note: "",
+        });
+        PROJECT_MANAGER.save();
+        setTimeout(render, 10);
+    }
 }
 function hydrate() {
     onClick($('button-prev-day'), () => {
@@ -36,9 +135,11 @@ function hydrate() {
     window.onresize = renderTimeline;
 }
 function render() {
-    renderProjects();
-    renderTimetable();
-    renderTimeline();
+    if (dragData == null) {
+        renderProjects();
+        renderTimetable();
+        renderTimeline();
+    }
 }
 function renderProjects() {
     const projects = $('projects');
@@ -48,7 +149,8 @@ function renderProjects() {
         projects.append(div);
     }
     projects.append(create('div', {
-        class: 'add-project', '@click': openDialogNewProject
+        class: 'add-project',
+        '@click': openDialogNewProject
     }, '+ add project'));
 }
 function renderProject(project) {
@@ -67,6 +169,10 @@ function renderProject(project) {
                 addClass(this, 'active');
             }
             render();
+        },
+        draggable: true,
+        '@dragstart': function (event) {
+            dragStart(project);
         }
     }, [
         create('div', { class: 'color' }),
@@ -144,7 +250,8 @@ function renderTimeline() {
         const popupStyleLeft = Math.min(0, width - divStyleLeft - 192 - 6);
         if (popupStyleLeft < 0)
             popup.style.left = `${popupStyleLeft}px`;
-        const divWidth = Math.max(8, Math.floor(interpolate(minHour, maxHour, stopHour) * width) - Math.floor(interpolate(minHour, maxHour, startHour) * width));
+        const minWidth = (interval.stop == null) ? 8 : 1;
+        const divWidth = Math.max(minWidth, Math.floor(interpolate(minHour, maxHour, stopHour) * width) - Math.floor(interpolate(minHour, maxHour, startHour) * width));
         div.style.width = `${divWidth}px`;
         if (interval.stop === null) {
             addClass(div, 'active');
@@ -165,6 +272,12 @@ function renderTimeline() {
         now.style.left = `${Math.floor(interpolate(minHour, maxHour, nowHour) * width)}px`;
         times.append(now);
     }
+    return {
+        minHour,
+        maxHour,
+        timelineWidth: width,
+        timelineLeft: timeline.offsetLeft,
+    };
 }
 function renderInterval(interval) {
     const project = PROJECT_MANAGER.getProject(interval.project);
@@ -310,7 +423,6 @@ function openDialogEditInterval(interval) {
             stopRow,
             create('span', { class: 'error' }),
             create('textarea', {
-                autofocus: true,
                 cols: 20,
                 rows: 3,
                 placeholder: 'What did you do?'

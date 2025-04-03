@@ -4,9 +4,9 @@ export class ProjectManager {
         this.intervals = [];
     }
     getProject(name) {
-        for (const task of this.projects) {
-            if (task.name == name) {
-                return task;
+        for (const project of this.projects) {
+            if (project.name == name) {
+                return project;
             }
         }
         return null;
@@ -15,13 +15,13 @@ export class ProjectManager {
         if (this.getProject(name) != null || name.length == 0) {
             return null;
         }
-        const task = {
+        const project = {
             name,
             color: '#000000'
         };
-        this.projects.push(task);
+        this.projects.push(project);
         this.save();
-        return task;
+        return project;
     }
     deleteProject(name) {
         this.projects = this.projects.filter(project => project.name != name);

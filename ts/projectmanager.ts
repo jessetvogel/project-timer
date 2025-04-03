@@ -20,9 +20,9 @@ export class ProjectManager {
     }
 
     getProject(name: string): Project | null {
-        for (const task of this.projects) {
-            if (task.name == name) {
-                return task;
+        for (const project of this.projects) {
+            if (project.name == name) {
+                return project;
             }
         }
         return null;
@@ -32,21 +32,20 @@ export class ProjectManager {
         if (this.getProject(name) != null || name.length == 0) {
             return null;
         }
-        const task: Project = {
+        const project: Project = {
             name,
             color: '#000000'
         };
-        this.projects.push(task);
+        this.projects.push(project);
 
         this.save();
 
-        return task;
+        return project;
     }
 
     deleteProject(name: string): void {
         this.projects = this.projects.filter(project => project.name != name);
         // this.intervals = this.intervals.filter(interval => interval.project != name);
-
         this.save();
     }
 

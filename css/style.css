@@ -289,6 +289,16 @@ body {
             }
         }
     }
+
+    .drop-preview {
+        position: absolute;
+        top: 0px;
+        width: 48px;
+        height: 48px;
+        border-radius: 6px;
+        box-shadow: var(--box-shadow);
+        /* opacity: 0.5; */
+    }
 }
 
 .project.active {

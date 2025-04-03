@@ -1,5 +1,5 @@
 import { Interval, Project, ProjectManager } from "./projectmanager.js";
-import { $, $$, addClass, clear, create, onClick, removeClass, setText } from "./util.js"
+import { $, $$, addClass, clear, create, onClick, onDragOver, onDrop, removeClass, setText } from "./util.js"
 import { initTheme } from "./theme.js"
 
 const PROJECT_MANAGER = new ProjectManager();
@@ -21,6 +21,11 @@ const COLORS = [
 window.addEventListener("DOMContentLoaded", main);
 
 var selectedDate = new Date();
+var dragData: {
+    project: Project,
+    preview: HTMLElement,
+    touchIdentifier: number,
+} | null = null;
 
 function main() {
     // Load data
@@ -35,6 +40,119 @@ function main() {
     // Re-render every 10 seconds
     setInterval(render, 10 * 1000);
     render();
+
+    // Drag-drop system
+    onDragOver(document.body, (event) => {
+        event.preventDefault();
+        dragMove(event.clientX, event.clientY);
+    });
+    onDrop($('timeline')!, (event) => {
+        event.preventDefault();
+        dragStop(event.clientX, event.clientY);
+    });
+    document.addEventListener("touchstart", (event) => {
+        event.preventDefault();
+        const target = (event.target as HTMLElement).closest("[draggable='true']");
+        if (target != null) {
+            const project = PROJECT_MANAGER.getProject((target.querySelector('.name') as HTMLElement).innerText);
+            if (project != null) {
+                dragStart(project);
+                dragData!.touchIdentifier = event.changedTouches[0].identifier;
+            }
+        }
+    });
+    document.addEventListener("touchmove", (event) => {
+        for (const touch of event.changedTouches) {
+            if (dragData != null && touch.identifier == dragData.touchIdentifier) {
+                event.preventDefault();
+                dragMove(touch.clientX, touch.clientY);
+                break;
+            }
+        }
+    }, { passive: false });
+    document.addEventListener("touchend", (event) => {
+        for (const touch of event.changedTouches) {
+            if (dragData != null && touch.identifier == dragData.touchIdentifier) {
+                event.preventDefault();
+                dragStop(touch.clientX, touch.clientY);
+                return;
+            }
+        }
+    });
+}
+
+function dragStart(project: Project) {
+    const timelineInfo = renderTimeline();
+    const previewWidth = timelineInfo.timelineWidth / (timelineInfo.maxHour - timelineInfo.minHour) * 0.25;
+
+    const preview = create('div', { class: 'drop-preview' });
+    preview.style.backgroundColor = project.color;
+    preview.style.opacity = '0.0';
+    preview.style.width = `${previewWidth}px`;
+    $("intervals")?.append(preview);
+    dragData = {
+        project: project,
+        preview: preview,
+        touchIdentifier: -1,
+    };
+}
+
+function dragMove(clientX: number, clientY: number): void {
+    if (dragData != null) {
+        const timeline = $('timeline')!;
+        const hoverTimeline = (
+            clientX >= timeline.offsetLeft
+            && clientX <= timeline.offsetLeft + timeline.offsetWidth
+            && clientY >= timeline.offsetTop
+            && clientY <= timeline.offsetTop + timeline.offsetHeight
+        );
+        dragData.preview.style.opacity = (hoverTimeline ? '0.5' : '0.0');
+        dragData.preview.style.left = `${clientX - 24}px`;
+    }
+}
+
+function dragStop(clientX: number, clientY: number): void {
+    if (dragData != null) {
+        const timeline = $('timeline')!;
+        const hoverTimeline = (
+            clientX >= timeline.offsetLeft
+            && clientX <= timeline.offsetLeft + timeline.offsetWidth
+            && clientY >= timeline.offsetTop
+            && clientY <= timeline.offsetTop + timeline.offsetHeight
+        );
+        if (hoverTimeline) {
+            dropOnTimeline(clientX);
+        }
+        dragData = null;
+    }
+}
+
+function dropOnTimeline(clientX: number): void {
+    if (dragData != null) {
+        // Compute starting time for new interval from x-coordinate
+        const timelineInfo = renderTimeline();
+        const f = (clientX - timelineInfo.timelineLeft) / timelineInfo.timelineWidth;
+        const startHour = timelineInfo.minHour + f * (timelineInfo.maxHour - timelineInfo.minHour);
+
+        // Create new interval
+        const start = new Date(selectedDate);
+        start.setHours(Math.floor(startHour));
+        start.setMinutes(Math.floor(startHour * 60) % 60);
+
+        const stopHour = startHour + 0.25; // By default, 15 minutes
+        const stop = new Date(start);
+        stop.setHours(Math.floor(stopHour));
+        stop.setMinutes(Math.floor(stopHour * 60) % 60);
+
+        PROJECT_MANAGER.intervals.push({
+            project: dragData.project.name,
+            start: start.getTime(),
+            stop: stop.getTime(),
+            note: "",
+        });
+        PROJECT_MANAGER.save();
+        setTimeout(render, 10);
+    }
 }
 
 function hydrate(): void {
@@ -50,9 +168,11 @@ function hydrate(): void {
 }
 
 function render(): void {
-    renderProjects();
-    renderTimetable();
-    renderTimeline();
+    if (dragData == null) {
+        renderProjects();
+        renderTimetable();
+        renderTimeline();
+    }
 }
 
 function renderProjects(): void {
@@ -63,7 +183,8 @@ function renderProjects(): void {
         projects.append(div);
     }
     projects.append(create('div', {
-        class: 'add-project', '@click': openDialogNewProject
+        class: 'add-project',
+        '@click': openDialogNewProject
     }, '+ add project'));
 }
 
@@ -83,6 +204,10 @@ function renderProject(project: Project): HTMLElement {
                 addClass(this as HTMLElement, 'active');
             }
             render();
+        },
+        draggable: true,
+        '@dragstart': function (event: DragEvent) {
+            dragStart(project);
         }
     }, [
         create('div', { class: 'color' }),
@@ -126,7 +251,14 @@ function renderTimetable(): void {
     (Object.keys(times).length == 0 ? addClass : removeClass)(table, 'hidden');
 }
 
-function renderTimeline(): void {
+type TimelineInfo = {
+    minHour: number,
+    maxHour: number,
+    timelineWidth: number,
+    timelineLeft: number,
+};
+
+function renderTimeline(): TimelineInfo {
     const timeline = $('timeline')!;
     const width = timeline.clientWidth;
 
@@ -175,7 +307,8 @@ function renderTimeline(): void {
         if (popupStyleLeft < 0) popup.style.left = `${popupStyleLeft}px`;
 
         // NOTE: Weird math to ensure pixel perfect width!
-        const divWidth = Math.max(8, Math.floor(interpolate(minHour, maxHour, stopHour) * width) - Math.floor(interpolate(minHour, maxHour, startHour) * width));
+        const minWidth = (interval.stop == null) ? 8 : 1;
+        const divWidth = Math.max(minWidth, Math.floor(interpolate(minHour, maxHour, stopHour) * width) - Math.floor(interpolate(minHour, maxHour, startHour) * width));
         div.style.width = `${divWidth}px`;
         if (interval.stop === null) {
             addClass(div, 'active');
@@ -200,6 +333,13 @@ function renderTimeline(): void {
         now.style.left = `${Math.floor(interpolate(minHour, maxHour, nowHour) * width)}px`;
         times.append(now);
     }
+
+    return {
+        minHour,
+        maxHour,
+        timelineWidth: width,
+        timelineLeft: timeline.offsetLeft,
+    };
 }
 
 function renderInterval(interval: Interval): HTMLElement {
@@ -359,7 +499,7 @@ function openDialogEditInterval(interval: Interval): void {
             stopRow,
             create('span', { class: 'error' }),
             create('textarea', {
-                autofocus: true,
+                // autofocus: true,
                 cols: 20,
                 rows: 3,
                 placeholder: 'What did you do?'
