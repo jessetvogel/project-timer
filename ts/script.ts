@@ -175,7 +175,7 @@ function renderTimeline(): void {
         if (popupStyleLeft < 0) popup.style.left = `${popupStyleLeft}px`;
 
         // NOTE: Weird math to ensure pixel perfect width!
-        const divWidth = Math.max(1, Math.floor(interpolate(minHour, maxHour, stopHour) * width) - Math.floor(interpolate(minHour, maxHour, startHour) * width));
+        const divWidth = Math.max(8, Math.floor(interpolate(minHour, maxHour, stopHour) * width) - Math.floor(interpolate(minHour, maxHour, startHour) * width));
         div.style.width = `${divWidth}px`;
         if (interval.stop === null) {
             addClass(div, 'active');
@@ -488,8 +488,9 @@ function formatHourMin(timestamp: number | null): string {
 }
 
 function formatDuration(hours: number): string {
-    if (hours < 1) return `${Math.round(hours * 60)}min`;
-    return `${Math.floor(hours)}h ${Math.round((hours * 60) % 60)}min`;
+    const minutes = Math.round(hours * 60);
+    if (minutes < 60) return `${minutes}min`;
+    return `${Math.floor(minutes / 60)}h ${minutes % 60}min`;
 }
 
 function formatDate(date: Date): string {

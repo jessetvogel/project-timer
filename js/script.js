@@ -144,7 +144,7 @@ function renderTimeline() {
         const popupStyleLeft = Math.min(0, width - divStyleLeft - 192 - 6);
         if (popupStyleLeft < 0)
             popup.style.left = `${popupStyleLeft}px`;
-        const divWidth = Math.max(1, Math.floor(interpolate(minHour, maxHour, stopHour) * width) - Math.floor(interpolate(minHour, maxHour, startHour) * width));
+        const divWidth = Math.max(8, Math.floor(interpolate(minHour, maxHour, stopHour) * width) - Math.floor(interpolate(minHour, maxHour, startHour) * width));
         div.style.width = `${divWidth}px`;
         if (interval.stop === null) {
             addClass(div, 'active');
@@ -419,9 +419,10 @@ function formatHourMin(timestamp) {
     return `${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
 }
 function formatDuration(hours) {
-    if (hours < 1)
-        return `${Math.round(hours * 60)}min`;
-    return `${Math.floor(hours)}h ${Math.round((hours * 60) % 60)}min`;
+    const minutes = Math.round(hours * 60);
+    if (minutes < 60)
+        return `${minutes}min`;
+    return `${Math.floor(minutes / 60)}h ${minutes % 60}min`;
 }
 function formatDate(date) {
     return date.toLocaleDateString('en-GB', {
