@@ -50,35 +50,6 @@ function main() {
         event.preventDefault();
         dragStop(event.clientX, event.clientY);
     });
-    document.addEventListener("touchstart", (event) => {
-        event.preventDefault();
-        const target = (event.target as HTMLElement).closest("[draggable='true']");
-        if (target != null) {
-            const project = PROJECT_MANAGER.getProject((target.querySelector('.name') as HTMLElement).innerText);
-            if (project != null) {
-                dragStart(project);
-                dragData!.touchIdentifier = event.changedTouches[0].identifier;
-            }
-        }
-    });
-    document.addEventListener("touchmove", (event) => {
-        for (const touch of event.changedTouches) {
-            if (dragData != null && touch.identifier == dragData.touchIdentifier) {
-                event.preventDefault();
-                dragMove(touch.clientX, touch.clientY);
-                break;
-            }
-        }
-    }, { passive: false });
-    document.addEventListener("touchend", (event) => {
-        for (const touch of event.changedTouches) {
-            if (dragData != null && touch.identifier == dragData.touchIdentifier) {
-                event.preventDefault();
-                dragStop(touch.clientX, touch.clientY);
-                return;
-            }
-        }
-    });
 }
 
 function dragStart(project: Project) {
@@ -97,16 +68,15 @@ function dragStart(project: Project) {
     };
 }
 
+function hovers(elem: HTMLElement, clientX: number, clientY: number): boolean {
+    const box = elem.getBoundingClientRect();
+    return clientX >= box.left && clientX <= box.right && clientY >= box.top && clientY <= box.bottom;
+}
+
 function dragMove(clientX: number, clientY: number): void {
     if (dragData != null) {
-        const timeline = $('timeline')!;
-        const hoverTimeline = (
-            clientX >= timeline.offsetLeft
-            && clientX <= timeline.offsetLeft + timeline.offsetWidth
-            && clientY >= timeline.offsetTop
-            && clientY <= timeline.offsetTop + timeline.offsetHeight
-        );
-        dragData.preview.style.opacity = (hoverTimeline ? '0.5' : '0.0');
+        const h = hovers($('timeline')!, clientX, clientY);
+        dragData.preview.style.opacity = (h ? '0.5' : '0.0');
         dragData.preview.style.left = `${clientX - 24}px`;
     }
 }
@@ -123,6 +93,7 @@ function dragStop(clientX: number, clientY: number): void {
         if (hoverTimeline) {
             dropOnTimeline(clientX);
         }
+        dragData.preview.remove();
         dragData = null;
     }
 }
@@ -190,24 +161,59 @@ function renderProjects(): void {
 
 function renderProject(project: Project): HTMLElement {
     const is_active = PROJECT_MANAGER.isActive(project.name);
-    return create('div', {
+
+    const clickHandler = function () {
+        // Start / stop project by clicking on it
+        for (const elem of $$('.project'))
+            removeClass(elem, 'active');
+        if (is_active) {
+            PROJECT_MANAGER.stopProject();
+        } else {
+            PROJECT_MANAGER.startProject(project.name);
+            addClass(div, 'active');
+        }
+        render();
+    };
+
+    const div = create('div', {
         class: `project ${is_active ? 'active' : ''}`,
         style: `--project-color: ${project.color};`,
-        '@click': function () {
-            // Start / stop project by clicking on it
-            for (const elem of $$('.project'))
-                removeClass(elem, 'active');
-            if (is_active) {
-                PROJECT_MANAGER.stopProject();
-            } else {
-                PROJECT_MANAGER.startProject(project.name);
-                addClass(this as HTMLElement, 'active');
-            }
-            render();
-        },
+        '@click': clickHandler,
         draggable: true,
         '@dragstart': function (event: DragEvent) {
             dragStart(project);
+        },
+        '@touchstart': function (event: TouchEvent) {
+            event.preventDefault();
+            dragStart(project);
+            dragData!.touchIdentifier = event.changedTouches[0].identifier;
+        },
+        '@touchmove': function (event: TouchEvent) {
+            for (const touch of event.changedTouches) {
+                if (dragData != null && touch.identifier == dragData.touchIdentifier) {
+                    event.preventDefault();
+                    dragMove(touch.clientX, touch.clientY);
+                    return;
+                }
+            }
+        },
+        '@touchend': function (event: TouchEvent) {
+            for (const touch of event.changedTouches) {
+                if (dragData != null && touch.identifier == dragData.touchIdentifier) {
+                    event.preventDefault();
+                    // If ends on button, act like a click
+                    if (dragData.project == project && hovers(this as HTMLElement, touch.clientX, touch.clientY)) {
+                        dragData.preview.remove();
+                        dragData = null;
+                        clickHandler();
+                    }
+                    // If ends on timeline, act like a drag
+                    else {
+                        dragStop(touch.clientX, touch.clientY);
+                    }
+                    return;
+                }
+            }
         }
     }, [
         create('div', { class: 'color' }),
@@ -220,6 +226,7 @@ function renderProject(project: Project): HTMLElement {
             }
         }),
     ]);
+    return div;
 }
 
 function renderTimetable(): void {
@@ -505,6 +512,7 @@ function openDialogEditInterval(interval: Interval): void {
                 placeholder: 'What did you do?'
             }, interval.note),
             create('button', {
+                autofocus: true,
                 '@click': () => {
                     const note = dialog.querySelector('textarea')!.value;
 

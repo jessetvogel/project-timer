@@ -32,35 +32,6 @@ function main() {
         event.preventDefault();
         dragStop(event.clientX, event.clientY);
     });
-    document.addEventListener("touchstart", (event) => {
-        event.preventDefault();
-        const target = event.target.closest("[draggable='true']");
-        if (target != null) {
-            const project = PROJECT_MANAGER.getProject(target.querySelector('.name').innerText);
-            if (project != null) {
-                dragStart(project);
-                dragData.touchIdentifier = event.changedTouches[0].identifier;
-            }
-        }
-    });
-    document.addEventListener("touchmove", (event) => {
-        for (const touch of event.changedTouches) {
-            if (dragData != null && touch.identifier == dragData.touchIdentifier) {
-                event.preventDefault();
-                dragMove(touch.clientX, touch.clientY);
-                break;
-            }
-        }
-    }, { passive: false });
-    document.addEventListener("touchend", (event) => {
-        for (const touch of event.changedTouches) {
-            if (dragData != null && touch.identifier == dragData.touchIdentifier) {
-                event.preventDefault();
-                dragStop(touch.clientX, touch.clientY);
-                return;
-            }
-        }
-    });
 }
 function dragStart(project) {
     var _a;
@@ -77,14 +48,14 @@ function dragStart(project) {
         touchIdentifier: -1,
     };
 }
+function hovers(elem, clientX, clientY) {
+    const box = elem.getBoundingClientRect();
+    return clientX >= box.left && clientX <= box.right && clientY >= box.top && clientY <= box.bottom;
+}
 function dragMove(clientX, clientY) {
     if (dragData != null) {
-        const timeline = $('timeline');
-        const hoverTimeline = (clientX >= timeline.offsetLeft
-            && clientX <= timeline.offsetLeft + timeline.offsetWidth
-            && clientY >= timeline.offsetTop
-            && clientY <= timeline.offsetTop + timeline.offsetHeight);
-        dragData.preview.style.opacity = (hoverTimeline ? '0.5' : '0.0');
+        const h = hovers($('timeline'), clientX, clientY);
+        dragData.preview.style.opacity = (h ? '0.5' : '0.0');
         dragData.preview.style.left = `${clientX - 24}px`;
     }
 }
@@ -98,6 +69,7 @@ function dragStop(clientX, clientY) {
         if (hoverTimeline) {
             dropOnTimeline(clientX);
         }
+        dragData.preview.remove();
         dragData = null;
     }
 }
@@ -155,24 +127,55 @@ function renderProjects() {
 }
 function renderProject(project) {
     const is_active = PROJECT_MANAGER.isActive(project.name);
-    return create('div', {
+    const clickHandler = function () {
+        for (const elem of $$('.project'))
+            removeClass(elem, 'active');
+        if (is_active) {
+            PROJECT_MANAGER.stopProject();
+        }
+        else {
+            PROJECT_MANAGER.startProject(project.name);
+            addClass(div, 'active');
+        }
+        render();
+    };
+    const div = create('div', {
         class: `project ${is_active ? 'active' : ''}`,
         style: `--project-color: ${project.color};`,
-        '@click': function () {
-            for (const elem of $$('.project'))
-                removeClass(elem, 'active');
-            if (is_active) {
-                PROJECT_MANAGER.stopProject();
-            }
-            else {
-                PROJECT_MANAGER.startProject(project.name);
-                addClass(this, 'active');
-            }
-            render();
-        },
+        '@click': clickHandler,
         draggable: true,
         '@dragstart': function (event) {
             dragStart(project);
+        },
+        '@touchstart': function (event) {
+            event.preventDefault();
+            dragStart(project);
+            dragData.touchIdentifier = event.changedTouches[0].identifier;
+        },
+        '@touchmove': function (event) {
+            for (const touch of event.changedTouches) {
+                if (dragData != null && touch.identifier == dragData.touchIdentifier) {
+                    event.preventDefault();
+                    dragMove(touch.clientX, touch.clientY);
+                    return;
+                }
+            }
+        },
+        '@touchend': function (event) {
+            for (const touch of event.changedTouches) {
+                if (dragData != null && touch.identifier == dragData.touchIdentifier) {
+                    event.preventDefault();
+                    if (dragData.project == project && hovers(this, touch.clientX, touch.clientY)) {
+                        dragData.preview.remove();
+                        dragData = null;
+                        clickHandler();
+                    }
+                    else {
+                        dragStop(touch.clientX, touch.clientY);
+                    }
+                    return;
+                }
+            }
         }
     }, [
         create('div', { class: 'color' }),
@@ -185,6 +188,7 @@ function renderProject(project) {
             }
         }),
     ]);
+    return div;
 }
 function renderTimetable() {
     const table = $('timetable');
@@ -428,6 +432,7 @@ function openDialogEditInterval(interval) {
                 placeholder: 'What did you do?'
             }, interval.note),
             create('button', {
+                autofocus: true,
                 '@click': () => {
                     const note = dialog.querySelector('textarea').value;
                     const startHourMin = startRow.querySelector('input').value.split(':').map(x => parseInt(x));
