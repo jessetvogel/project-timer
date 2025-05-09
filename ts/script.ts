@@ -182,41 +182,43 @@ function renderProject(project: Project): HTMLElement {
         draggable: true,
         '@dragstart': function (event: DragEvent) {
             dragStart(project);
-        },
-        '@touchstart': function (event: TouchEvent) {
-            event.preventDefault();
-            dragStart(project);
-            dragData!.touchIdentifier = event.changedTouches[0].identifier;
-        },
-        '@touchmove': function (event: TouchEvent) {
-            for (const touch of event.changedTouches) {
-                if (dragData != null && touch.identifier == dragData.touchIdentifier) {
-                    event.preventDefault();
-                    dragMove(touch.clientX, touch.clientY);
-                    return;
-                }
-            }
-        },
-        '@touchend': function (event: TouchEvent) {
-            for (const touch of event.changedTouches) {
-                if (dragData != null && touch.identifier == dragData.touchIdentifier) {
-                    event.preventDefault();
-                    // If ends on button, act like a click
-                    if (dragData.project == project && hovers(this as HTMLElement, touch.clientX, touch.clientY)) {
-                        dragData.preview.remove();
-                        dragData = null;
-                        clickHandler();
-                    }
-                    // If ends on timeline, act like a drag
-                    else {
-                        dragStop(touch.clientX, touch.clientY);
-                    }
-                    return;
-                }
-            }
         }
     }, [
-        create('div', { class: 'color' }),
+        create('div', {
+            class: 'color',
+            '@touchstart': function (event: TouchEvent) {
+                event.preventDefault();
+                dragStart(project);
+                dragData!.touchIdentifier = event.changedTouches[0].identifier;
+            },
+            '@touchmove': function (event: TouchEvent) {
+                for (const touch of event.changedTouches) {
+                    if (dragData != null && touch.identifier == dragData.touchIdentifier) {
+                        event.preventDefault();
+                        dragMove(touch.clientX, touch.clientY);
+                        return;
+                    }
+                }
+            },
+            '@touchend': function (event: TouchEvent) {
+                for (const touch of event.changedTouches) {
+                    if (dragData != null && touch.identifier == dragData.touchIdentifier) {
+                        event.preventDefault();
+                        // If ends on button, act like a click
+                        if (dragData.project == project && hovers(this as HTMLElement, touch.clientX, touch.clientY)) {
+                            dragData.preview.remove();
+                            dragData = null;
+                            clickHandler();
+                        }
+                        // If ends on timeline, act like a drag
+                        else {
+                            dragStop(touch.clientX, touch.clientY);
+                        }
+                        return;
+                    }
+                }
+            }
+        }),
         create('div', { class: 'name' }, project.name),
         create('div', {
             class: 'settings',

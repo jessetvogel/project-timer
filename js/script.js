@@ -146,39 +146,41 @@ function renderProject(project) {
         draggable: true,
         '@dragstart': function (event) {
             dragStart(project);
-        },
-        '@touchstart': function (event) {
-            event.preventDefault();
-            dragStart(project);
-            dragData.touchIdentifier = event.changedTouches[0].identifier;
-        },
-        '@touchmove': function (event) {
-            for (const touch of event.changedTouches) {
-                if (dragData != null && touch.identifier == dragData.touchIdentifier) {
-                    event.preventDefault();
-                    dragMove(touch.clientX, touch.clientY);
-                    return;
-                }
-            }
-        },
-        '@touchend': function (event) {
-            for (const touch of event.changedTouches) {
-                if (dragData != null && touch.identifier == dragData.touchIdentifier) {
-                    event.preventDefault();
-                    if (dragData.project == project && hovers(this, touch.clientX, touch.clientY)) {
-                        dragData.preview.remove();
-                        dragData = null;
-                        clickHandler();
-                    }
-                    else {
-                        dragStop(touch.clientX, touch.clientY);
-                    }
-                    return;
-                }
-            }
         }
     }, [
-        create('div', { class: 'color' }),
+        create('div', {
+            class: 'color',
+            '@touchstart': function (event) {
+                event.preventDefault();
+                dragStart(project);
+                dragData.touchIdentifier = event.changedTouches[0].identifier;
+            },
+            '@touchmove': function (event) {
+                for (const touch of event.changedTouches) {
+                    if (dragData != null && touch.identifier == dragData.touchIdentifier) {
+                        event.preventDefault();
+                        dragMove(touch.clientX, touch.clientY);
+                        return;
+                    }
+                }
+            },
+            '@touchend': function (event) {
+                for (const touch of event.changedTouches) {
+                    if (dragData != null && touch.identifier == dragData.touchIdentifier) {
+                        event.preventDefault();
+                        if (dragData.project == project && hovers(this, touch.clientX, touch.clientY)) {
+                            dragData.preview.remove();
+                            dragData = null;
+                            clickHandler();
+                        }
+                        else {
+                            dragStop(touch.clientX, touch.clientY);
+                        }
+                        return;
+                    }
+                }
+            }
+        }),
         create('div', { class: 'name' }, project.name),
         create('div', {
             class: 'settings',
